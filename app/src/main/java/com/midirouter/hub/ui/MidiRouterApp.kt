@@ -14,7 +14,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -59,9 +58,6 @@ fun MidiRouterApp(viewModel: MidiViewModel) {
             TopAppBar(
                 title = { Text("MIDI Router Hub") },
                 actions = {
-                    IconButton(onClick = { viewModel.cycleColorPalette() }) {
-                        Icon(Icons.Default.Palette, contentDescription = "Mudar Cor")
-                    }
                     IconButton(onClick = { viewModel.toggleTheme() }) {
                         Icon(Icons.Default.Brightness4, contentDescription = "Mudar Tema")
                     }
@@ -216,7 +212,6 @@ private fun CreateRouteDialog(
     onDismiss: () -> Unit,
     onCreate: (Pair<String, MidiPortModel>, Pair<String, MidiPortModel>) -> Unit
 ) {
-    // Agora mantemos o dispositivo inteiro na lista de opções para podermos aceder ao seu ID e Nome original
     val sources = remember(devices) { devices.flatMap { d -> d.ports.filter { it.type == PortType.OUT }.map { d to it } } }
     val destinations = remember(devices) { devices.flatMap { d -> d.ports.filter { it.type == PortType.IN }.map { d to it } } }
     
@@ -245,7 +240,6 @@ private fun CreateRouteDialog(
             Button(
                 enabled = source != null && destination != null,
                 onClick = { 
-                    // Convertendo de volta para o formato esperado pelo onCreate original
                     val srcPair = source!!.first.id.toString() to source!!.second
                     val destPair = destination!!.first.id.toString() to destination!!.second
                     onCreate(srcPair, destPair) 
@@ -266,7 +260,6 @@ private fun EndpointPicker(
 ) {
     var expanded by remember { mutableStateOf(false) }
     
-    // Função auxiliar para criar a String de exibição perfeitamente formatada
     val getDisplayName: (Pair<MidiDeviceInfoModel, MidiPortModel>) -> String = { option ->
         val device = option.first
         val port = option.second
