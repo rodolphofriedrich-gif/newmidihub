@@ -8,24 +8,22 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.isSystemInDarkTheme // <-- IMPORTANTE: Importar esta função
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme // <-- IMPORTANTE: Importar as cores claras
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 import com.midirouter.hub.receiver.UsbReceiver
 import com.midirouter.hub.ui.MidiRouterApp
-// import com.midirouter.hub.ui.MidiRouterApp
 import com.midirouter.hub.viewmodel.MidiViewModel
 
 class MainActivity : ComponentActivity() {
-
     private val viewModel: MidiViewModel by viewModels()
-
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) {
@@ -34,22 +32,22 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Registrar receptor dinâmico de conexões USB OTG
-        ContextCompat.registerReceiver(
-            this,
-            viewModel.usbReceiver,
-            UsbReceiver.createIntentFilter(),
-            ContextCompat.RECEIVER_EXPORTED
-        )
-
-        // Solicitar permissões de Bluetooth MIDI se necessário no Android 12+ (API 31+)
+        
+        registerReceiver(viewModel.usbReceiver, UsbReceiver.createIntentFilter())
         checkBluetoothPermissions()
-
+        
         setContent {
-            // 1. Definir as cores do Modo Escuro
+            val state by viewModel.uiState.collectAsState()
+            
+            // Define a cor principal com base na escolha do utilizador
+            val primaryColor = when (state.colorPaletteIndex) {
+                1 -> Color(0xFF1E88E5) // Azul
+                2 -> Color(0xFF10B981) // Verde
+                else -> Color(0xFF6366F1) // Roxo (Padrão)
+            }
+
             val darkColors = darkColorScheme(
-                primary = Color(0xFF6366F1),
+                primary = primaryColor,
                 secondary = Color(0xFF10B981),
                 background = Color(0xFF09090B),
                 surface = Color(0xFF18181B),
@@ -59,9 +57,8 @@ class MainActivity : ComponentActivity() {
                 onSurface = Color(0xFFF4F4F5)
             )
 
-            // 2. Definir as cores do Modo Claro
             val lightColors = lightColorScheme(
-                primary = Color(0xFF4F46E5), // Um tom de primary ligeiramente diferente se desejar
+                primary = primaryColor,
                 secondary = Color(0xFF059669),
                 background = Color(0xFFF9FAFB),
                 surface = Color(0xFFFFFFFF),
@@ -71,12 +68,9 @@ class MainActivity : ComponentActivity() {
                 onSurface = Color(0xFF111827)
             )
 
-            // 3. Detetar o tema atual do sistema Android
-            val isDarkMode = isSystemInDarkTheme()
-            val currentColorScheme = if (isDarkMode) darkColors else lightColors
+            val currentColorScheme = if (state.isDarkMode) darkColors else lightColors
 
-            // 4. Aplicar o esquema de cores correto
-            MaterialTheme(colorScheme = darkColors) {
+            MaterialTheme(colorScheme = currentColorScheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -106,8 +100,6 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         try {
             unregisterReceiver(viewModel.usbReceiver)
-        } catch (e: Exception) {
-            // Receptor já desregistrado
-        }
+        } catch (e: Exception) {}
     }
 }
