@@ -39,12 +39,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val state by viewModel.uiState.collectAsState()
             
-            // Define a cor principal com base na escolha do utilizador
-            val primaryColor = when (state.colorPaletteIndex) {
-                1 -> Color(0xFF1E88E5) // Azul
-                2 -> Color(0xFF10B981) // Verde
-                else -> Color(0xFF6366F1) // Roxo (Padrão)
-            }
+            // Cor primária fixa (Roxo)
+            val primaryColor = Color(0xFF6366F1)
 
             val darkColors = darkColorScheme(
                 primary = primaryColor,
