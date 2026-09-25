@@ -12,7 +12,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -33,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,47 +52,78 @@ fun MidiRouterApp(viewModel: MidiViewModel) {
     var showCreate by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("MIDI Router Hub") }) },
+        topBar = { 
+            TopAppBar(
+                title = { Text("MIDI Router Hub") },
+                actions = {
+                    // Botão interno para trocar cor
+                    IconButton(onClick = { viewModel.cycleColorPalette() }) {
+                        Icon(Icons.Default.Palette, contentDescription = "Mudar Cor")
+                    }
+                    // Botão interno para trocar tema Claro/Escuro
+                    IconButton(onClick = { viewModel.toggleTheme() }) {
+                        Icon(Icons.Default.Brightness4, contentDescription = "Mudar Tema")
+                    }
+                }
+            ) 
+        },
         floatingActionButton = {
             androidx.compose.material3.FloatingActionButton(onClick = { showCreate = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Criar conexão")
             }
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Dispositivos MIDI", style = MaterialTheme.typography.titleLarge)
-                TextButton(onClick = viewModel::refreshDevices) { Text("Atualizar") }
+        // Layout corrigido: Tudo numa única LazyColumn para permitir rolagem total
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+        ) {
+            item {
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Dispositivos MIDI", style = MaterialTheme.typography.titleLarge)
+                    TextButton(onClick = viewModel::refreshDevices) { Text("Atualizar") }
+                }
+                if (state.isScanning) LinearProgressIndicator(Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
             }
-            if (state.isScanning) LinearProgressIndicator(Modifier.fillMaxWidth())
 
-            LazyColumn(Modifier.weight(1f)) {
-                items(state.devices, key = { it.id }) { device ->
-                    DeviceCard(
-                        device = device,
-                        customAlias = state.portAliases[device.id.toString()],
-                        onRenameClick = { id, current ->
-                            viewModel.renamePortOrDevice(id.toString(), current)
-                        }
-                    )
+            items(state.devices, key = { it.id }) { device ->
+                DeviceCard(
+                    device = device,
+                    customAlias = state.portAliases[device.id.toString()],
+                    onRenameClick = { id, current ->
+                        viewModel.renamePortOrDevice(id.toString(), current)
+                    }
+                )
+            }
+
+            item {
+                Spacer(Modifier.height(24.dp))
+                Text("Conexões", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(8.dp))
+                if (state.routes.isEmpty()) {
+                    Text("Nenhuma conexão criada.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
-            Text("Conexões", style = MaterialTheme.typography.titleLarge)
-            if (state.routes.isEmpty()) {
-                Text("Nenhuma conexão criada.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                state.routes.forEach { route ->
-                    RouteRow(
-                        route = route,
-                        onToggle = { viewModel.toggleRoute(route.id) },
-                        onDelete = { viewModel.deleteRoute(route.id) }
-                    )
-                }
+            items(state.routes, key = { it.id }) { route ->
+                RouteRow(
+                    route = route,
+                    onToggle = { viewModel.toggleRoute(route.id) },
+                    onDelete = { viewModel.deleteRoute(route.id) } // O botão de lixeira agora fica visível!
+                )
+            }
+
+            item {
+                // Espaço invisível no final da lista para o botão roxo flutuante não sobrepor os itens
+                Spacer(Modifier.height(88.dp)) 
             }
         }
     }
@@ -116,8 +150,9 @@ fun MidiRouterApp(viewModel: MidiViewModel) {
 private fun RouteRow(route: MidiRoute, onToggle: () -> Unit, onDelete: () -> Unit) {
     Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
                 Text(route.name, style = MaterialTheme.typography.titleMedium)
@@ -126,9 +161,18 @@ private fun RouteRow(route: MidiRoute, onToggle: () -> Unit, onDelete: () -> Uni
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            Switch(checked = route.enabled, onCheckedChange = { onToggle() })
+            Switch(
+                checked = route.enabled, 
+                onCheckedChange = { onToggle() },
+                modifier = Modifier.padding(end = 8.dp)
+            )
+            // Botão interno de exclusão já corrigido e agora visível
             IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Excluir conexão")
+                Icon(
+                    Icons.Default.Delete, 
+                    contentDescription = "Excluir conexão",
+                    tint = MaterialTheme.colorScheme.error // Ícone vermelho para chamar atenção
+                )
             }
         }
     }
