@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.midirouter.hub.model.ChannelRule
+import com.midirouter.hub.model.MidiDeviceInfoModel
 import com.midirouter.hub.model.MidiPortModel
 import com.midirouter.hub.model.PortType
 import com.midirouter.hub.model.MidiRoute
@@ -50,17 +52,16 @@ import com.midirouter.hub.viewmodel.MidiViewModel
 fun MidiRouterApp(viewModel: MidiViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showCreate by remember { mutableStateOf(false) }
+    var deviceToRename by remember { mutableStateOf<MidiDeviceInfoModel?>(null) }
 
     Scaffold(
         topBar = { 
             TopAppBar(
                 title = { Text("MIDI Router Hub") },
                 actions = {
-                    // Botão interno para trocar cor
                     IconButton(onClick = { viewModel.cycleColorPalette() }) {
                         Icon(Icons.Default.Palette, contentDescription = "Mudar Cor")
                     }
-                    // Botão interno para trocar tema Claro/Escuro
                     IconButton(onClick = { viewModel.toggleTheme() }) {
                         Icon(Icons.Default.Brightness4, contentDescription = "Mudar Tema")
                     }
@@ -68,12 +69,16 @@ fun MidiRouterApp(viewModel: MidiViewModel) {
             ) 
         },
         floatingActionButton = {
-            androidx.compose.material3.FloatingActionButton(onClick = { showCreate = true }) {
+            androidx.compose.material3.FloatingActionButton(
+                onClick = { 
+                    viewModel.refreshDevices() // Força atualização ao clicar no botão +
+                    showCreate = true 
+                }
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Criar conexão")
             }
         }
     ) { padding ->
-        // Layout corrigido: Tudo numa única LazyColumn para permitir rolagem total
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -98,8 +103,8 @@ fun MidiRouterApp(viewModel: MidiViewModel) {
                 DeviceCard(
                     device = device,
                     customAlias = state.portAliases[device.id.toString()],
-                    onRenameClick = { id, current ->
-                        viewModel.renamePortOrDevice(id.toString(), current)
+                    onRenameClick = { _, _ -> 
+                        deviceToRename = device // Abre a janela de renomear
                     }
                 )
             }
@@ -117,17 +122,45 @@ fun MidiRouterApp(viewModel: MidiViewModel) {
                 RouteRow(
                     route = route,
                     onToggle = { viewModel.toggleRoute(route.id) },
-                    onDelete = { viewModel.deleteRoute(route.id) } // O botão de lixeira agora fica visível!
+                    onDelete = { viewModel.deleteRoute(route.id) } 
                 )
             }
 
             item {
-                // Espaço invisível no final da lista para o botão roxo flutuante não sobrepor os itens
                 Spacer(Modifier.height(88.dp)) 
             }
         }
     }
 
+    // Janela de Renomear Dispositivo
+    if (deviceToRename != null) {
+        val currentAlias = state.portAliases[deviceToRename!!.id.toString()] ?: deviceToRename!!.name
+        var newAlias by remember { mutableStateOf(currentAlias) }
+
+        AlertDialog(
+            onDismissRequest = { deviceToRename = null },
+            title = { Text("Renomear Dispositivo") },
+            text = {
+                OutlinedTextField(
+                    value = newAlias,
+                    onValueChange = { newAlias = it },
+                    label = { Text("Nome personalizado") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.renamePortOrDevice(deviceToRename!!.id.toString(), newAlias)
+                    deviceToRename = null
+                }) { Text("Salvar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deviceToRename = null }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    // Janela de Criar Conexão (Atualizada para reagir a mudanças)
     if (showCreate) {
         CreateRouteDialog(
             devices = state.devices,
@@ -166,12 +199,11 @@ private fun RouteRow(route: MidiRoute, onToggle: () -> Unit, onDelete: () -> Uni
                 onCheckedChange = { onToggle() },
                 modifier = Modifier.padding(end = 8.dp)
             )
-            // Botão interno de exclusão já corrigido e agora visível
             IconButton(onClick = onDelete) {
                 Icon(
                     Icons.Default.Delete, 
                     contentDescription = "Excluir conexão",
-                    tint = MaterialTheme.colorScheme.error // Ícone vermelho para chamar atenção
+                    tint = MaterialTheme.colorScheme.error 
                 )
             }
         }
@@ -180,14 +212,16 @@ private fun RouteRow(route: MidiRoute, onToggle: () -> Unit, onDelete: () -> Uni
 
 @Composable
 private fun CreateRouteDialog(
-    devices: List<com.midirouter.hub.model.MidiDeviceInfoModel>,
+    devices: List<MidiDeviceInfoModel>,
     onDismiss: () -> Unit,
     onCreate: (Pair<String, MidiPortModel>, Pair<String, MidiPortModel>) -> Unit
 ) {
-    val sources = devices.flatMap { d -> d.ports.filter { it.type == PortType.OUT }.map { d.id.toString() to it } }
-    val destinations = devices.flatMap { d -> d.ports.filter { it.type == PortType.IN }.map { d.id.toString() to it } }
-    var source by remember { mutableStateOf(sources.firstOrNull()) }
-    var destination by remember { mutableStateOf(destinations.firstOrNull()) }
+    // A chave "devices" faz a lista se recarregar sempre que a varredura detectar algo novo
+    val sources = remember(devices) { devices.flatMap { d -> d.ports.filter { it.type == PortType.OUT }.map { d.id.toString() to it } } }
+    val destinations = remember(devices) { devices.flatMap { d -> d.ports.filter { it.type == PortType.IN }.map { d.id.toString() to it } } }
+    
+    var source by remember(sources) { mutableStateOf(sources.firstOrNull()) }
+    var destination by remember(destinations) { mutableStateOf(destinations.firstOrNull()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -200,8 +234,9 @@ private fun CreateRouteDialog(
                 if (sources.isEmpty() || destinations.isEmpty()) {
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "É necessário ter pelo menos uma porta OUT e uma porta IN disponíveis.",
-                        color = MaterialTheme.colorScheme.error
+                        "Conecte e ligue pelo menos um dispositivo de entrada (OUT) e um de saída (IN).",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
@@ -227,7 +262,7 @@ private fun EndpointPicker(
     Column {
         Text(label, style = MaterialTheme.typography.labelMedium)
         Button(onClick = { expanded = true }, enabled = options.isNotEmpty()) {
-            Text(selected?.let { "Dispositivo ${it.first} • ${it.second.name}" } ?: "Nenhuma porta")
+            Text(selected?.let { "Dispositivo ${it.first} • ${it.second.name}" } ?: "Nenhuma porta disponível")
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->
