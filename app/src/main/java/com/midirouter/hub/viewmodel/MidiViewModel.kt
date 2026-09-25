@@ -23,29 +23,23 @@ data class MidiHubUiState(
     val portAliases: Map<String, String> = emptyMap(),
     val recentPackets: List<MidiPacketLog> = emptyList(),
     val isScanning: Boolean = false,
-    val totalRoutedPackets: Long = 0
+    val totalRoutedPackets: Long = 0,
+    val isDarkMode: Boolean = true, // Novo: Controle do Modo Escuro
+    val colorPaletteIndex: Int = 0  // Novo: Controle da Cor (0=Roxo, 1=Azul, 2=Verde)
 )
 
 class MidiViewModel(application: Application) : AndroidViewModel(application) {
-
     private val storage = ConfigStorage(application)
     val routerEngine = MidiRouterEngine(viewModelScope)
-
+    
     private val _uiState = MutableStateFlow(MidiHubUiState())
     val uiState: StateFlow<MidiHubUiState> = _uiState.asStateFlow()
+    
+    private val deviceManager = MidiDeviceManager(application) { refreshDevices() }
 
-    private val deviceManager = MidiDeviceManager(application, routerEngine) {
-        refreshDevices()
-    }
-
-    // Receptor Plug & Play para USB
     val usbReceiver = UsbReceiver(
-        onDeviceAttached = { device ->
-            handleUsbAttached(device)
-        },
-        onDeviceDetached = { device ->
-            handleUsbDetached(device)
-        }
+        onDeviceAttached = { device -> handleUsbAttached(device) },
+        onDeviceDetached = { device -> handleUsbDetached(device) }
     )
 
     init {
@@ -54,11 +48,21 @@ class MidiViewModel(application: Application) : AndroidViewModel(application) {
         observeMidiPackets()
     }
 
+    // --- NOVAS FUNÇÕES DE TEMA ---
+    fun toggleTheme() {
+        _uiState.update { it.copy(isDarkMode = !it.isDarkMode) }
+    }
+
+    fun cycleColorPalette() {
+        // Alterna entre 0, 1 e 2
+        _uiState.update { it.copy(colorPaletteIndex = (it.colorPaletteIndex + 1) % 3) }
+    }
+    // -----------------------------
+
     private fun loadSavedConfiguration() {
         viewModelScope.launch(Dispatchers.IO) {
             val savedRoutes = storage.loadRoutes()
             val savedAliases = storage.loadAliases()
-
             _uiState.update { current ->
                 current.copy(
                     routes = savedRoutes,
@@ -66,7 +70,6 @@ class MidiViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
             routerEngine.updateRoutes(savedRoutes)
-            deviceManager.syncRoutes(savedRoutes)
         }
     }
 
@@ -78,13 +81,8 @@ class MidiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun handleUsbAttached(device: UsbDevice) {
-        refreshDevices()
-    }
-
-    private fun handleUsbDetached(device: UsbDevice) {
-        refreshDevices()
-    }
+    private fun handleUsbAttached(device: UsbDevice) { refreshDevices() }
+    private fun handleUsbDetached(device: UsbDevice) { refreshDevices() }
 
     private fun observeMidiPackets() {
         viewModelScope.launch {
@@ -102,27 +100,21 @@ class MidiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun createRoute(
-        sourceDeviceId: String,
-        sourcePortKey: String,
-        destinationDeviceId: String,
-        destinationPortKey: String,
+        sourceDeviceId: String, sourcePortKey: String,
+        destinationDeviceId: String, destinationPortKey: String,
         channelRule: ChannelRule
     ) {
         val newRoute = MidiRoute(
             id = UUID.randomUUID().toString(),
             name = "Rota ${_uiState.value.routes.size + 1}",
             enabled = true,
-            sourceDeviceId = sourceDeviceId,
-            sourcePortKey = sourcePortKey,
-            destinationDeviceId = destinationDeviceId,
-            destinationPortKey = destinationPortKey,
+            sourceDeviceId = sourceDeviceId, sourcePortKey = sourcePortKey,
+            destinationDeviceId = destinationDeviceId, destinationPortKey = destinationPortKey,
             rules = channelRule
         )
-
         val updated = _uiState.value.routes + newRoute
         _uiState.update { it.copy(routes = updated) }
         routerEngine.updateRoutes(updated)
-        deviceManager.syncRoutes(updated)
         storage.saveRoutes(updated)
     }
 
@@ -132,7 +124,6 @@ class MidiViewModel(application: Application) : AndroidViewModel(application) {
         }
         _uiState.update { it.copy(routes = updated) }
         routerEngine.updateRoutes(updated)
-        deviceManager.syncRoutes(updated)
         storage.saveRoutes(updated)
     }
 
@@ -140,7 +131,6 @@ class MidiViewModel(application: Application) : AndroidViewModel(application) {
         val updated = _uiState.value.routes.filterNot { it.id == routeId }
         _uiState.update { it.copy(routes = updated) }
         routerEngine.updateRoutes(updated)
-        deviceManager.syncRoutes(updated)
         storage.saveRoutes(updated)
     }
 
