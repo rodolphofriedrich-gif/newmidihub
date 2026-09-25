@@ -24,8 +24,8 @@ data class MidiHubUiState(
     val recentPackets: List<MidiPacketLog> = emptyList(),
     val isScanning: Boolean = false,
     val totalRoutedPackets: Long = 0,
-    val isDarkMode: Boolean = true, // Novo: Controle do Modo Escuro
-    val colorPaletteIndex: Int = 0  // Novo: Controle da Cor (0=Roxo, 1=Azul, 2=Verde)
+    val isDarkMode: Boolean = true, 
+    val colorPaletteIndex: Int = 0  
 )
 
 class MidiViewModel(application: Application) : AndroidViewModel(application) {
@@ -35,6 +35,7 @@ class MidiViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(MidiHubUiState())
     val uiState: StateFlow<MidiHubUiState> = _uiState.asStateFlow()
     
+    // A inicialização limpa que evita o erro "engine"
     private val deviceManager = MidiDeviceManager(application) { refreshDevices() }
 
     val usbReceiver = UsbReceiver(
@@ -48,16 +49,13 @@ class MidiViewModel(application: Application) : AndroidViewModel(application) {
         observeMidiPackets()
     }
 
-    // --- NOVAS FUNÇÕES DE TEMA ---
     fun toggleTheme() {
         _uiState.update { it.copy(isDarkMode = !it.isDarkMode) }
     }
 
     fun cycleColorPalette() {
-        // Alterna entre 0, 1 e 2
         _uiState.update { it.copy(colorPaletteIndex = (it.colorPaletteIndex + 1) % 3) }
     }
-    // -----------------------------
 
     private fun loadSavedConfiguration() {
         viewModelScope.launch(Dispatchers.IO) {
