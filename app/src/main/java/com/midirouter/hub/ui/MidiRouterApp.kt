@@ -71,7 +71,7 @@ fun MidiRouterApp(viewModel: MidiViewModel) {
         floatingActionButton = {
             androidx.compose.material3.FloatingActionButton(
                 onClick = { 
-                    viewModel.refreshDevices() // Força atualização ao clicar no botão +
+                    viewModel.refreshDevices()
                     showCreate = true 
                 }
             ) {
@@ -104,7 +104,7 @@ fun MidiRouterApp(viewModel: MidiViewModel) {
                     device = device,
                     customAlias = state.portAliases[device.id.toString()],
                     onRenameClick = { _, _ -> 
-                        deviceToRename = device // Abre a janela de renomear
+                        deviceToRename = device 
                     }
                 )
             }
@@ -132,7 +132,6 @@ fun MidiRouterApp(viewModel: MidiViewModel) {
         }
     }
 
-    // Janela de Renomear Dispositivo
     if (deviceToRename != null) {
         val currentAlias = state.portAliases[deviceToRename!!.id.toString()] ?: deviceToRename!!.name
         var newAlias by remember { mutableStateOf(currentAlias) }
@@ -160,10 +159,10 @@ fun MidiRouterApp(viewModel: MidiViewModel) {
         )
     }
 
-    // Janela de Criar Conexão (Atualizada para reagir a mudanças)
     if (showCreate) {
         CreateRouteDialog(
             devices = state.devices,
+            portAliases = state.portAliases,
             onDismiss = { showCreate = false },
             onCreate = { source, destination ->
                 viewModel.createRoute(
@@ -213,12 +212,13 @@ private fun RouteRow(route: MidiRoute, onToggle: () -> Unit, onDelete: () -> Uni
 @Composable
 private fun CreateRouteDialog(
     devices: List<MidiDeviceInfoModel>,
+    portAliases: Map<String, String>,
     onDismiss: () -> Unit,
     onCreate: (Pair<String, MidiPortModel>, Pair<String, MidiPortModel>) -> Unit
 ) {
-    // A chave "devices" faz a lista se recarregar sempre que a varredura detectar algo novo
-    val sources = remember(devices) { devices.flatMap { d -> d.ports.filter { it.type == PortType.OUT }.map { d.id.toString() to it } } }
-    val destinations = remember(devices) { devices.flatMap { d -> d.ports.filter { it.type == PortType.IN }.map { d.id.toString() to it } } }
+    // Agora mantemos o dispositivo inteiro na lista de opções para podermos aceder ao seu ID e Nome original
+    val sources = remember(devices) { devices.flatMap { d -> d.ports.filter { it.type == PortType.OUT }.map { d to it } } }
+    val destinations = remember(devices) { devices.flatMap { d -> d.ports.filter { it.type == PortType.IN }.map { d to it } } }
     
     var source by remember(sources) { mutableStateOf(sources.firstOrNull()) }
     var destination by remember(destinations) { mutableStateOf(destinations.firstOrNull()) }
@@ -228,9 +228,9 @@ private fun CreateRouteDialog(
         title = { Text("Criar conexão MIDI") },
         text = {
             Column {
-                EndpointPicker("Origem (MIDI OUT)", sources, source) { source = it }
+                EndpointPicker("Origem (MIDI OUT)", sources, source, portAliases) { source = it }
                 Spacer(Modifier.height(10.dp))
-                EndpointPicker("Destino (MIDI IN)", destinations, destination) { destination = it }
+                EndpointPicker("Destino (MIDI IN)", destinations, destination, portAliases) { destination = it }
                 if (sources.isEmpty() || destinations.isEmpty()) {
                     Spacer(Modifier.height(10.dp))
                     Text(
@@ -244,7 +244,12 @@ private fun CreateRouteDialog(
         confirmButton = {
             Button(
                 enabled = source != null && destination != null,
-                onClick = { onCreate(source!!, destination!!) }
+                onClick = { 
+                    // Convertendo de volta para o formato esperado pelo onCreate original
+                    val srcPair = source!!.first.id.toString() to source!!.second
+                    val destPair = destination!!.first.id.toString() to destination!!.second
+                    onCreate(srcPair, destPair) 
+                }
             ) { Text("Criar") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
@@ -254,20 +259,34 @@ private fun CreateRouteDialog(
 @Composable
 private fun EndpointPicker(
     label: String,
-    options: List<Pair<String, MidiPortModel>>,
-    selected: Pair<String, MidiPortModel>?,
-    onSelected: (Pair<String, MidiPortModel>) -> Unit
+    options: List<Pair<MidiDeviceInfoModel, MidiPortModel>>,
+    selected: Pair<MidiDeviceInfoModel, MidiPortModel>?,
+    portAliases: Map<String, String>,
+    onSelected: (Pair<MidiDeviceInfoModel, MidiPortModel>) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    
+    // Função auxiliar para criar a String de exibição perfeitamente formatada
+    val getDisplayName: (Pair<MidiDeviceInfoModel, MidiPortModel>) -> String = { option ->
+        val device = option.first
+        val port = option.second
+        val alias = portAliases[device.id.toString()] ?: device.name
+        "$alias (ID: ${device.id}) • ${port.name}"
+    }
+
     Column {
         Text(label, style = MaterialTheme.typography.labelMedium)
-        Button(onClick = { expanded = true }, enabled = options.isNotEmpty()) {
-            Text(selected?.let { "Dispositivo ${it.first} • ${it.second.name}" } ?: "Nenhuma porta disponível")
+        Button(
+            onClick = { expanded = true }, 
+            enabled = options.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(selected?.let { getDisplayName(it) } ?: "Nenhuma porta disponível")
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text("Dispositivo ${option.first} • ${option.second.name}") },
+                    text = { Text(getDisplayName(option)) },
                     onClick = {
                         onSelected(option)
                         expanded = false
