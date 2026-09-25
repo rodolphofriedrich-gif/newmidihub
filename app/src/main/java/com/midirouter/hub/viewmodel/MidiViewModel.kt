@@ -24,8 +24,7 @@ data class MidiHubUiState(
     val recentPackets: List<MidiPacketLog> = emptyList(),
     val isScanning: Boolean = false,
     val totalRoutedPackets: Long = 0,
-    val isDarkMode: Boolean = true, 
-    val colorPaletteIndex: Int = 0  
+    val isDarkMode: Boolean = true
 )
 
 class MidiViewModel(application: Application) : AndroidViewModel(application) {
@@ -35,7 +34,6 @@ class MidiViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(MidiHubUiState())
     val uiState: StateFlow<MidiHubUiState> = _uiState.asStateFlow()
     
-    // A inicialização limpa que evita o erro "engine"
     private val deviceManager = MidiDeviceManager(application) { refreshDevices() }
 
     val usbReceiver = UsbReceiver(
@@ -51,10 +49,6 @@ class MidiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleTheme() {
         _uiState.update { it.copy(isDarkMode = !it.isDarkMode) }
-    }
-
-    fun cycleColorPalette() {
-        _uiState.update { it.copy(colorPaletteIndex = (it.colorPaletteIndex + 1) % 3) }
     }
 
     private fun loadSavedConfiguration() {
