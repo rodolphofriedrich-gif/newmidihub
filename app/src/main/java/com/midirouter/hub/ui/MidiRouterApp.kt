@@ -18,6 +18,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -41,6 +42,7 @@ import com.midirouter.hub.model.PortType
 import com.midirouter.hub.model.MidiRoute
 import com.midirouter.hub.viewmodel.MidiViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MidiRouterApp(viewModel: MidiViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
