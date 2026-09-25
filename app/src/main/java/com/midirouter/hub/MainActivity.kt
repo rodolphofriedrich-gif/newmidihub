@@ -39,7 +39,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             val state by viewModel.uiState.collectAsState()
             
-            // Cor primária fixa (Roxo)
             val primaryColor = Color(0xFF6366F1)
 
             val darkColors = darkColorScheme(
