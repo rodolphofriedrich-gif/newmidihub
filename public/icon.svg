@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="104" fill="#0f172a"/>
+  <!-- Subtle border -->
+  <rect x="8" y="8" width="496" height="496" rx="96" stroke="#3b82f6" stroke-width="4" stroke-opacity="0.3"/>
+  <!-- Keyboard chassis -->
+  <rect x="56" y="140" width="400" height="250" rx="20" fill="#1e293b" stroke="#334155" stroke-width="6"/>
+  <!-- Status LED -->
+  <circle cx="96" cy="180" r="10" fill="#10b981"/>
+  <rect x="130" y="174" width="70" height="12" rx="6" fill="#334155"/>
+  <rect x="220" y="174" width="70" height="12" rx="6" fill="#334155"/>
+  <!-- White keys -->
+  <g fill="#f8fafc" stroke="#64748b" stroke-width="3">
+    <rect x="76" y="210" width="48" height="160" rx="6"/>
+    <rect x="124" y="210" width="48" height="160" rx="6"/>
+    <rect x="172" y="210" width="48" height="160" rx="6"/>
+    <rect x="220" y="210" width="48" height="160" rx="6"/>
+    <rect x="268" y="210" width="48" height="160" rx="6"/>
+    <rect x="316" y="210" width="48" height="160" rx="6"/>
+    <rect x="364" y="210" width="48" height="160" rx="6"/>
+  </g>
+  <!-- Black keys -->
+  <g fill="#020617">
+    <rect x="108" y="210" width="30" height="100" rx="4"/>
+    <rect x="156" y="210" width="30" height="100" rx="4"/>
+    <rect x="252" y="210" width="30" height="100" rx="4"/>
+    <rect x="300" y="210" width="30" height="100" rx="4"/>
+    <rect x="348" y="210" width="30" height="100" rx="4"/>
+  </g>
+  <!-- MIDI Wave BLE Indicator -->
+  <path d="M 390 170 Q 405 180 390 190" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 402 162 Q 425 180 402 198" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
+</svg>

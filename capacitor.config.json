@@ -1,0 +1,12 @@
+{
+  "appId": "com.midi.controller.keyboard",
+  "appName": "Teclado MIDI",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true,
+    "webContentsDebuggingEnabled": true
+  }
+}
